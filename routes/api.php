@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\RegisterController;
+use App\Http\Controllers\Api\GmailAuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,15 @@ use Illuminate\Support\Facades\Route;
  * Returns: JSON response with user data and success message
  */
 Route::post('/register', [RegisterController::class, 'register']);
+
+/**
+ * Gmail OAuth2 Authorization Endpoints
+ *
+ * GET /api/gmail/auth - Get Google authorization URL
+ * GET /api/gmail/callback - Handle OAuth2 callback and get refresh token
+ */
+Route::get('/gmail/auth', [GmailAuthController::class, 'redirectToGoogle']);
+Route::get('/gmail/callback', [GmailAuthController::class, 'handleGoogleCallback']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();

@@ -1,13 +1,13 @@
 # REST API - User Registration with Email Notification
 
-A Laravel REST API that handles user registration and sends welcome emails asynchronously using Gmail SMTP.
+A Laravel REST API that handles user registration and sends welcome emails asynchronously using Gmail API with OAuth2 authentication.
 
 ## Features
 
 - ✅ RESTful API design with JSON responses
 - ✅ User registration endpoint (`POST /api/register`)
 - ✅ Asynchronous email sending using queues (non-blocking)
-- ✅ Gmail SMTP integration for sending emails
+- ✅ **Gmail API with OAuth2** for sending emails (as per assignment requirement)
 - ✅ PostgreSQL database
 - ✅ Comprehensive error handling and validation
 - ✅ Well-commented code
@@ -19,7 +19,8 @@ A Laravel REST API that handles user registration and sends welcome emails async
 - Composer
 - PostgreSQL
 - Laravel 10.x
-- Gmail account with App Password enabled
+- Google Cloud Project with Gmail API enabled
+- Google OAuth2 credentials (Client ID, Client Secret, Refresh Token)
 - PHPUnit (included with Laravel)
 
 ## Installation & Setup
@@ -52,84 +53,79 @@ DB_USERNAME=postgres
 DB_PASSWORD=your_postgres_password
 ```
 
-#### Mail Configuration (Gmail API)
+#### Gmail API Configuration (OAuth2)
 
 ```env
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=your_gmail_app_password
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=your_email@gmail.com
-MAIL_FROM_NAME="${APP_NAME}"
+GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/gmail/callback
+GOOGLE_REFRESH_TOKEN=your_refresh_token
 ```
 
-### 📧 Gmail API Setup - Complete Guide
+### 📧 Gmail API Setup - Complete OAuth2 Guide
 
-This project uses **Gmail API** for sending emails as per assignment requirements. Follow these steps to configure Gmail API credentials from Google Cloud Console.
+This project uses **Gmail API with OAuth2** for sending emails as per assignment requirements. Follow these steps to configure Gmail API credentials from Google Cloud Console.
 
-#### Step 1: Enable 2-Step Verification
-Before creating API credentials, enable 2FA on your Gmail account:
-1. Go to [Google Account Settings](https://myaccount.google.com/)
-2. Navigate to **Security** → **2-Step Verification**
-3. Follow prompts to enable (you'll need your phone)
-
-#### Step 2: Generate App Password for SMTP
-1. Go to [Google Account Security](https://myaccount.google.com/security)
-2. Under **How you sign in to Google** → **2-Step Verification**
-3. Scroll down and click **App passwords**
-4. Select app: **Mail**, Device: **Other (Custom name)**
-5. Name it: `Laravel REST API`
-6. Click **Generate** and copy the 16-character password
-7. Add to `.env`:
-```env
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=abcdefghijklmnop  # 16-char app password (no spaces)
-MAIL_FROM_ADDRESS=your_email@gmail.com
-```
-
-#### Step 3: Create Google Cloud Project
+#### Step 1: Create Google Cloud Project
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Click **Create Project**
 3. Enter project name: `Laravel REST API`
 4. Click **Create**
 
-#### Step 4: Enable Gmail API
+#### Step 2: Enable Gmail API
 1. In your project, go to **APIs & Services** → **Library**
 2. Search for **Gmail API**
 3. Click on it and click **Enable**
 
-#### Step 5: Create OAuth 2.0 Credentials
-1. Go to **APIs & Services** → **Credentials**
-2. Click **Create Credentials** → **OAuth client ID**
-3. If prompted, configure OAuth consent screen:
-   - User Type: **External**
+#### Step 3: Configure OAuth Consent Screen
+1. Go to **APIs & Services** → **OAuth consent screen**
+2. User Type: **External** → Click **Create**
+3. Fill in required fields:
    - App name: `Laravel REST API`
    - User support email: Your email
    - Developer contact: Your email
-   - Click **Save and Continue**
-4. Application type: **Web application**
-5. Name: `Laravel App`
+4. Click **Save and Continue**
+5. Scopes: Skip this step (click **Save and Continue**)
+6. Test users: Click **+ ADD USERS**
+   - Add your Gmail address (the one you'll use to send emails)
+   - Click **Add** → **Save and Continue**
+
+#### Step 4: Create OAuth 2.0 Credentials
+1. Go to **APIs & Services** → **Credentials**
+2. Click **Create Credentials** → **OAuth client ID**
+3. Application type: **Web application**
+4. Name: `REST API Email Sender`
+5. Authorized redirect URIs: Click **+ ADD URI**
+   - Add: `http://localhost:8000/api/gmail/callback`
 6. Click **Create**
 7. Copy the **Client ID** and **Client Secret**
 
-#### Step 6: Add Gmail API Credentials to .env
+#### Step 5: Add Credentials to .env
 ```env
-GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your_client_secret_here
+GOOGLE_CLIENT_ID=294704329553-xxxxxxxxxxxxx.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-xxxxxxxxxxxxxxxxxx
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/gmail/callback
 ```
 
-**Example:**
+#### Step 6: Generate Refresh Token
+1. Start Laravel server: `php artisan serve`
+2. Visit in browser: `http://127.0.0.1:8000/api/gmail/auth`
+3. Copy the `authorization_url` from JSON response
+4. Open that URL in browser
+5. Select your Gmail account
+6. Click **Allow** to grant Gmail send permission
+7. You'll be redirected to callback URL with refresh token
+8. Copy the `refresh_token` from JSON response
+9. Add to `.env`:
 ```env
-GOOGLE_CLIENT_ID=123456789-abcdefghijklmnop.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-YourSecretKeyHere
+GOOGLE_REFRESH_TOKEN=1//0g-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 **Important Notes:**
-- ✅ Gmail API credentials enable enhanced email functionality
-- ✅ App Password handles actual SMTP authentication
-- ✅ Both are required for complete Gmail integration
+- ✅ Uses Gmail API OAuth2 (not SMTP) as per assignment requirement
+- ✅ Client ID and Client Secret authenticate your application
+- ✅ Refresh token allows sending emails without repeated authorization
+- ⚠️ Keep refresh token secure - it provides ongoing access
 - ⚠️ Never commit actual credentials to version control
 
 #### Queue Configuration
@@ -383,11 +379,14 @@ app/
 │           └── RegisterController.php    # Handles user registration
 ├── Models/
 │   └── User.php                          # User model
-└── Notifications/
-    └── WelcomeEmailNotification.php      # Welcome email notification
+├── Notifications/
+│   ├── WelcomeEmailNotification.php      # Welcome email notification
+│   └── GmailApiChannel.php               # Custom Gmail API notification channel
+└── Services/
+    └── GmailApiService.php               # Gmail API OAuth2 service
 
 routes/
-└── api.php                               # API routes definition
+└── api.php                               # API routes definition (includes OAuth2 routes)
 
 database/
 └── migrations/
@@ -405,19 +404,27 @@ tests/
 3. **User creation** → Creates user record in PostgreSQL database
 4. **Queue notification** → Dispatches email job to queue (non-blocking)
 5. **Immediate response** → Returns success response to user
-6. **Background email** → Queue worker picks up job and sends email via Gmail
+6. **Background email** → Queue worker picks up job and sends email via **Gmail API OAuth2**
 
-The email sending is asynchronous, so the API response is fast and doesn't wait for the email to be sent.
+The email sending is asynchronous and uses Gmail API (not SMTP) as per assignment requirement, so the API response is fast and doesn't wait for the email to be sent.
 
 ## Troubleshooting
 
 ### Emails Not Sending
 
 1. Check queue worker is running: `php artisan queue:work`
-2. Verify Gmail credentials in `.env`
-3. Check `jobs` table for pending jobs: `SELECT * FROM jobs;`
-4. Check `failed_jobs` table for errors: `SELECT * FROM failed_jobs;`
-5. View Laravel logs: `storage/logs/laravel.log`
+2. Verify Gmail API credentials in `.env` (Client ID, Client Secret, Refresh Token)
+3. Ensure refresh token is valid (regenerate if needed via `/api/gmail/auth`)
+4. Check `jobs` table for pending jobs: `SELECT * FROM jobs;`
+5. Check `failed_jobs` table for errors: `SELECT * FROM failed_jobs;`
+6. View Laravel logs: `storage/logs/laravel.log`
+
+### Gmail API Issues
+
+1. Verify OAuth2 credentials are correct
+2. Check if test user is added in Google Cloud Console
+3. Regenerate refresh token if expired: Visit `http://127.0.0.1:8000/api/gmail/auth`
+4. Ensure Gmail API is enabled in Google Cloud Console
 
 ### Database Connection Issues
 
