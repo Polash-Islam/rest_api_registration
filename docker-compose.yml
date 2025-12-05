@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Laravel Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel_rest_api
+    restart: unless-stopped
+    working_dir: /var/www/html
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=Laravel
+      - APP_ENV=production
+      - APP_KEY=${APP_KEY}
+      - APP_DEBUG=false
+      - APP_URL=http://localhost:8000
+
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=rest_api_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+
+      - QUEUE_CONNECTION=database
+
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/gmail/callback}
+      - GOOGLE_REFRESH_TOKEN=${GOOGLE_REFRESH_TOKEN}
+    volumes:
+      - ./storage:/var/www/html/storage
+      - ./bootstrap/cache:/var/www/html/bootstrap/cache
+    networks:
+      - laravel_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=rest_api_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - laravel_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  laravel_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

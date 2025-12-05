@@ -12,9 +12,11 @@ A Laravel REST API that handles user registration and sends welcome emails async
 - ✅ Comprehensive error handling and validation
 - ✅ Well-commented code
 - ✅ **Automated testing with PHPUnit (12 test cases)**
+- ✅ **Docker support** for easy deployment
 
 ## Requirements
 
+### Local Development
 - PHP >= 8.1
 - Composer
 - PostgreSQL
@@ -23,7 +25,111 @@ A Laravel REST API that handles user registration and sends welcome emails async
 - Google OAuth2 credentials (Client ID, Client Secret, Refresh Token)
 - PHPUnit (included with Laravel)
 
+### Docker Development (Recommended)
+- Docker Desktop or Docker Engine
+- Docker Compose
+- Google OAuth2 credentials (Client ID, Client Secret, Refresh Token)
+
 ## Installation & Setup
+
+### Option A: Using Docker (Recommended)
+
+#### 1. Clone the Repository
+
+```bash
+git clone <your-repo-url>
+cd Rest_api_fresh
+```
+
+#### 2. Configure Environment for Docker
+
+Create a `.env` file from `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Update the following in `.env`:
+
+```env
+# Application
+APP_NAME=Laravel
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=http://localhost:8000
+
+# Database (Docker)
+DB_CONNECTION=pgsql
+DB_HOST=postgres
+DB_PORT=5432
+DB_DATABASE=rest_api_db
+DB_USERNAME=postgres
+DB_PASSWORD=postgres
+
+# Queue
+QUEUE_CONNECTION=database
+
+# Gmail API
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/gmail/callback
+GOOGLE_REFRESH_TOKEN=your_refresh_token
+```
+
+#### 3. Build and Start Docker Containers
+
+```bash
+docker-compose up --build
+```
+
+This command will:
+- Build the Laravel application container
+- Start PostgreSQL database container
+- Run database migrations automatically
+- Start nginx web server on port 8000
+- Start PHP-FPM for processing PHP requests
+- Start queue worker for processing emails in background
+
+#### 4. Access the Application
+
+The API will be available at: `http://localhost:8000`
+
+#### 5. Stop the Application
+
+```bash
+# Stop containers
+docker-compose down
+
+# Stop and remove volumes (WARNING: This deletes database data)
+docker-compose down -v
+```
+
+#### Docker Useful Commands
+
+```bash
+# View logs
+docker-compose logs -f
+
+# View app logs only
+docker-compose logs -f app
+
+# Access app container shell
+docker-compose exec app sh
+
+# Run artisan commands
+docker-compose exec app php artisan migrate
+docker-compose exec app php artisan test
+
+# Restart containers
+docker-compose restart
+
+# Rebuild after code changes
+docker-compose up --build
+```
+
+---
+
+### Option B: Local Installation (Manual Setup)
 
 ### 1. Clone the Repository
 
@@ -108,8 +214,17 @@ GOOGLE_REDIRECT_URI=http://localhost:8000/api/gmail/callback
 ```
 
 #### Step 6: Generate Refresh Token
+
+**For Docker:**
+1. Start containers: `docker-compose up --build`
+2. Visit in browser: `http://localhost:8000/api/gmail/auth`
+3. Follow steps 3-9 below
+
+**For Local Development:**
 1. Start Laravel server: `php artisan serve`
 2. Visit in browser: `http://127.0.0.1:8000/api/gmail/auth`
+
+**Common Steps:**
 3. Copy the `authorization_url` from JSON response
 4. Open that URL in browser
 5. Select your Gmail account
@@ -120,6 +235,7 @@ GOOGLE_REDIRECT_URI=http://localhost:8000/api/gmail/callback
 ```env
 GOOGLE_REFRESH_TOKEN=1//0g-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
+10. If using Docker, restart: `docker-compose restart`
 
 **Important Notes:**
 - ✅ Uses Gmail API OAuth2 (not SMTP) as per assignment requirement
@@ -406,12 +522,24 @@ tests/
 └── Feature/
     └── RegistrationTest.php                 # Automated test suite (12 tests)
 
+docker/
+├── nginx/
+│   ├── nginx.conf                           # Nginx main configuration
+│   └── default.conf                         # Laravel site configuration
+├── supervisor/
+│   └── supervisord.conf                     # Supervisor config (nginx, php-fpm, queue worker)
+└── docker-entrypoint.sh                     # Container startup script
+
+Dockerfile                                   # Docker image definition
+docker-compose.yml                           # Docker services orchestration
+.dockerignore                                # Files excluded from Docker build
 .env                                         # Environment variables (Gmail API credentials)
 composer.json                                # PHP dependencies (includes google/apiclient)
 ```
 
 ## How It Works
 
+### Standard Flow
 1. **User sends registration request** → API receives POST data
 2. **Validation** → Checks if email is unique and password is confirmed
 3. **User creation** → Creates user record in PostgreSQL database
@@ -419,12 +547,83 @@ composer.json                                # PHP dependencies (includes google
 5. **Immediate response** → Returns success response to user
 6. **Background email** → Queue worker picks up job and sends email via **Gmail API OAuth2**
 
+### Docker Architecture
+```
+┌─────────────────────────────────────────┐
+│         Docker Compose Network          │
+│                                         │
+│  ┌───────────────┐  ┌──────────────┐  │
+│  │  App Container│  │   PostgreSQL │  │
+│  │               │  │   Container  │  │
+│  │ - Nginx :8000 │◄─┤              │  │
+│  │ - PHP-FPM     │  │   Port 5432  │  │
+│  │ - Queue Worker│  │              │  │
+│  │ - Supervisor  │  └──────────────┘  │
+│  └───────────────┘                     │
+│         │                               │
+└─────────┼───────────────────────────────┘
+          │
+     Port 8000
+          │
+    ┌─────▼──────┐
+    │   Client   │
+    └────────────┘
+```
+
 The email sending is asynchronous and uses Gmail API (not SMTP) as per assignment requirement, so the API response is fast and doesn't wait for the email to be sent.
 
 ## Troubleshooting
 
+### Docker Issues
+
+**Containers won't start:**
+```bash
+# Check logs
+docker-compose logs -f
+
+# Rebuild from scratch
+docker-compose down -v
+docker-compose up --build
+```
+
+**Database connection failed:**
+```bash
+# Verify postgres container is healthy
+docker-compose ps
+
+# Check postgres logs
+docker-compose logs postgres
+
+# Ensure DB_HOST=postgres in .env (not 127.0.0.1)
+```
+
+**Port 8000 already in use:**
+```bash
+# Stop existing services
+docker-compose down
+
+# Or change port in docker-compose.yml:
+# ports:
+#   - "8080:8000"
+```
+
+**Permission errors:**
+```bash
+# Fix storage permissions
+docker-compose exec app chmod -R 775 storage bootstrap/cache
+docker-compose exec app chown -R www-data:www-data storage bootstrap/cache
+```
+
 ### Emails Not Sending
 
+**For Docker:**
+1. Check queue worker logs: `docker-compose logs -f app | grep queue`
+2. Check supervisor status: `docker-compose exec app supervisorctl status`
+3. View worker logs: `docker-compose exec app cat storage/logs/worker.log`
+4. Verify Gmail API credentials in `.env`
+5. Restart containers: `docker-compose restart`
+
+**For Local Development:**
 1. Check queue worker is running: `php artisan queue:work`
 2. Verify Gmail API credentials in `.env` (Client ID, Client Secret, Refresh Token)
 3. Ensure refresh token is valid (regenerate if needed via `/api/gmail/auth`)
@@ -441,6 +640,12 @@ The email sending is asynchronous and uses Gmail API (not SMTP) as per assignmen
 
 ### Database Connection Issues
 
+**For Docker:**
+1. Verify postgres container is running: `docker-compose ps`
+2. Check DB_HOST is set to `postgres` (not `127.0.0.1`)
+3. Test connection: `docker-compose exec app php artisan migrate:status`
+
+**For Local Development:**
 1. Verify PostgreSQL is running
 2. Check database credentials in `.env`
 3. Ensure database `rest_api_db` exists
@@ -448,11 +653,45 @@ The email sending is asynchronous and uses Gmail API (not SMTP) as per assignmen
 
 ### Queue Issues
 
+**For Docker:**
+1. Check supervisor logs: `docker-compose exec app supervisorctl tail -f queue-worker`
+2. Restart queue worker: `docker-compose exec app supervisorctl restart queue-worker`
+3. View failed jobs: `docker-compose exec app php artisan queue:failed`
+
+**For Local Development:**
 1. Clear failed jobs: `php artisan queue:flush`
 2. Retry failed jobs: `php artisan queue:retry all`
 3. Restart queue worker: Stop and restart `php artisan queue:work`
 
 ## Additional Commands
+
+### Docker Commands
+
+```bash
+# Access container shell
+docker-compose exec app sh
+
+# Run artisan commands
+docker-compose exec app php artisan cache:clear
+docker-compose exec app php artisan config:clear
+docker-compose exec app php artisan route:list
+docker-compose exec app php artisan migrate:fresh
+docker-compose exec app php artisan test
+
+# Check supervisor processes
+docker-compose exec app supervisorctl status
+
+# Restart specific service
+docker-compose exec app supervisorctl restart queue-worker
+
+# View real-time logs
+docker-compose logs -f app
+
+# Database access
+docker-compose exec postgres psql -U postgres -d rest_api_db
+```
+
+### Local Development Commands
 
 ```bash
 # Clear application cache
