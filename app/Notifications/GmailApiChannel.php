@@ -9,7 +9,7 @@ use Illuminate\Notifications\Notification;
  * Gmail API Notification Channel
  *
  * Custom notification channel for sending emails through Gmail API
- * Uses OAuth2 authentication instead of SMTP
+ * Uses OAuth2 authentication 
  */
 class GmailApiChannel
 {

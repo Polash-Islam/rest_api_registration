@@ -9,8 +9,8 @@ use Illuminate\Http\Request;
 /**
  * Gmail OAuth2 Authentication Controller
  *
- * Handles OAuth2 authorization flow for Gmail API
- * Allows application to obtain refresh token for sending emails
+ *
+ *
  */
 class GmailAuthController extends Controller
 {
@@ -30,9 +30,7 @@ class GmailAuthController extends Controller
     }
 
     /**
-     * Redirect to Google OAuth2 authorization page
-     *
-     * Generates and returns the Google authorization URL
+
      * User must visit this URL to grant Gmail access
      *
      * @return \Illuminate\Http\JsonResponse Authorization URL in JSON format
@@ -56,7 +54,7 @@ class GmailAuthController extends Controller
      * @param Request $request HTTP request containing authorization code
      * @return \Illuminate\Http\JsonResponse Token information in JSON format
      */
-    public function handleGoogleCallback(Request $request)
+    public function handleGoogleCallback(Request $request) // main-auth-callback
     {
         // Validate authorization code is present
         if (!$request->has('code')) {

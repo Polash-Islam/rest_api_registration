@@ -54,10 +54,7 @@ class WelcomeEmailNotification extends Notification implements ShouldQueue
     }
 
     /**
-     * Send email using Gmail API
-     *
-     * Builds HTML email content and sends it through Gmail API using OAuth2
-     * This method is called by the custom Gmail API notification channel
+
      *
      * @param mixed $notifiable - The entity that is being notified (User)
      * @return array Email data for Gmail API
@@ -67,7 +64,7 @@ class WelcomeEmailNotification extends Notification implements ShouldQueue
         $appName = config('app.name');
         $homeUrl = url('/');
 
-        // Build HTML email content
+        // Build HTML email content designa
         $htmlContent = "
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
                 <h2 style='color: #333;'>Hello {$notifiable->name}!</h2>

@@ -17,7 +17,7 @@ class RegisterController extends Controller
      *
      * This endpoint handles user registration by validating the input,
      * creating a new user record in the database, and dispatching a
-     * queued notification to send a welcome email asynchronously.
+     * queued notification to send a welcome email.
      *
      * @param Request $request - The HTTP request containing user registration data
      * @return \Illuminate\Http\JsonResponse
